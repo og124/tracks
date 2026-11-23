@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# The UI and journey-planner tests (scripts/test_ui.mjs, scripts/test_journey.mjs)
+# need built data — `make data`, ~55 minutes and National Rail credentials for
+# the timetable — so they run locally, not here. These checks need nothing.
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: JavaScript parses
+        run: for f in web/app.js web/journey.js web/track.js web/prices.js; do node --check "$f"; done
+
+      - name: Python compiles
+        run: python3 -m compileall -q scripts/
+
+      # The sector colours are checked against colour-vision-deficiency gates for
+      # every pair of touching sectors. A hand-edited hex silently breaks that.
+      - name: palette clears the colourblind-safety gates
+        run: node scripts/check_palette.mjs
+
+      - name: dist assembles with everything index.html references
+        run: |
+          make dist
+          missing=0
+          for f in index.html app.js journey.js track.js prices.js style.css robots.txt vendor/leaflet.js vendor/leaflet.css; do
+            [ -f "dist/$f" ] || { echo "::error::dist/$f missing"; missing=1; }
+          done
+          for f in $(grep -o 'src="[^"]*\.js"' web/index.html | cut -d'"' -f2); do
+            [ -f "dist/$f" ] || { echo "::error::index.html loads $f but dist/$f is missing"; missing=1; }
+          done
+          exit $missing
+
+      # The app reads data/ relative to itself; "../data/web/" works under
+      # `make serve` and 404s everywhere else.
+      - name: no repo-relative data paths in the app
+        run: "! grep -n '\\.\\./data/web' web/*.js"

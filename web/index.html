@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tracks — the railway network of Great Britain</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101011'/%3E%3Cpath d='M6 25 L16 7 L26 25' stroke='%23d95926' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M16 7 L16 25' stroke='%239085e9' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map" role="application" aria-label="Map of the railway network of Great Britain"></div>
+
+<!-- ===================================================== top toolbar === -->
+<!-- Search is the bar, not a tool inside it: "take me to Hebden Bridge" is the
+     commonest thing anyone wants from a map of the country, and it used to be
+     the one thing this UI could not do — the only two boxes on screen were the
+     ends of a journey, so looking a station up meant pretending to plan a trip
+     to it. The journey planner is now one tool among several, reached from the
+     bar, which is also what makes it dismissable on a phone. -->
+<header id="bar" class="bar">
+  <div class="bar-main">
+    <span class="bar-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="18" height="18">
+        <path d="M6 25 L16 7 L26 25" stroke="#d95926" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M16 7 L16 25" stroke="#9085e9" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <h1 class="bar-title">Tracks</h1>
+
+    <div class="srch" role="search">
+      <svg class="srch-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M10.3 10.3 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input id="q" type="text" autocomplete="off" spellcheck="false" enterkeyhint="search"
+             role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="qMenu"
+             aria-label="Search for a station or a place"
+             placeholder="Search a station, town or village">
+      <button id="qClear" class="srch-x" type="button" title="Clear the search" hidden>&times;</button>
+      <ul id="qMenu" class="ac-menu" role="listbox" aria-label="Search results" hidden></ul>
+    </div>
+
+    <nav class="bar-tools" aria-label="Tools">
+      <button class="tool" data-tool="plan" type="button"
+              aria-expanded="false" aria-controls="toolPanel">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <circle cx="4" cy="12" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="12" cy="4" r="2.1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M5.6 10.4 10.4 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg><span>Plan a journey</span>
+      </button>
+      <button class="tool" data-tool="prices" type="button"
+              aria-expanded="false" aria-controls="toolPanel">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path d="M2 7 8 2.2 14 7" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3.6 7.6V13.4h8.8V7.6" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg><span>House prices</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- One panel, one tool in it at a time. Two panels open at once on a phone
+       is two panels' worth of map covered up. -->
+  <div id="toolPanel" class="tool-panel" hidden>
+    <!-- ------------------------------------------------- plan a journey -- -->
+    <section id="planTool" class="tool-body" aria-label="Plan a journey" hidden>
+      <div class="io">
+        <!-- Destination first, deliberately. The question this map exists to
+             answer is "where could I live and still get to work" — naming the
+             destination alone shades every station in the country by its commute,
+             and the starting station only narrows that to one journey. -->
+        <div class="io-rail" aria-hidden="true">
+          <span class="io-dot io-b"></span><span class="io-stem"></span><span class="io-dot io-a"></span>
+        </div>
+        <div class="io-fields">
+          <div class="ac" data-ac="to">
+            <label for="toInput">Where are you going?</label>
+            <input id="toInput" type="text" autocomplete="off" spellcheck="false"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list"
+                   aria-controls="toMenu" placeholder="Search a station or CRS">
+            <button class="ac-x" type="button" data-clear="to" title="Clear" hidden>&times;</button>
+            <ul id="toMenu" class="ac-menu" role="listbox" hidden></ul>
+          </div>
+          <div class="ac" data-ac="from">
+            <label for="fromInput">Starting from <span class="opt">optional</span></label>
+            <input id="fromInput" type="text" autocomplete="off" spellcheck="false"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list"
+                   aria-controls="fromMenu" placeholder="Leave empty to see everywhere">
+            <button class="ac-x" type="button" data-clear="from" title="Clear" hidden>&times;</button>
+            <ul id="fromMenu" class="ac-menu" role="listbox" hidden></ul>
+          </div>
+        </div>
+        <button id="swapBtn" class="icon-btn io-swap" type="button" title="Swap start and destination">
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+            <path d="M5 2.5v11M5 13.5 2.6 11M11 13.5v-11M11 2.5 13.4 5" fill="none"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="cmd-actions">
+        <label class="tf"><span>Leaving</span><input id="timeInput" type="time" step="60"></label>
+        <button id="shareBtn" class="btn ghost" type="button" title="Copy a link to this view">Share</button>
+        <button id="clearBtn" class="btn ghost" type="button" hidden>Clear</button>
+        <button id="goBtn" class="btn" type="button">Find trains</button>
+      </div>
+
+      <div id="cmdOut" class="cmd-out" aria-live="polite" hidden></div>
+    </section>
+
+    <!-- ---------------------------------------------------- house prices -- -->
+    <section id="pricesTool" class="tool-body" aria-label="House prices" hidden>
+      <div class="hp-head">
+        <div class="hp-key">
+          <h2 id="hpTitle">Average house price</h2>
+          <div id="hpRamp" class="ramp" role="img"></div>
+          <div id="hpLabels" class="ramp-labels"></div>
+        </div>
+        <label class="hp-op"><span>Overlay</span>
+          <input id="hpOpacity" type="range" min="25" max="100" step="5" value="80"
+                 aria-label="Overlay strength">
+        </label>
+      </div>
+      <div id="hpRead" class="hp-read" aria-live="polite"></div>
+      <p id="hpNote" class="prov"></p>
+    </section>
+  </div>
+</header>
+
+<!-- ---------------------------------------------- right-hand inspector -- -->
+<aside id="inspector" class="ins" aria-label="Selection detail" hidden>
+  <div class="ins-scroll"><div id="detail" class="detail"></div></div>
+</aside>
+
+<!-- ------------------------------------------------- bottom-left dock -- -->
+<div id="dock" class="dock">
+  <div class="dock-bar">
+    <button id="legendBtn" class="dock-btn" aria-expanded="false" aria-controls="dockPanel">
+      <span class="dot-row" aria-hidden="true"></span>Legend
+    </button>
+    <div class="seg" role="radiogroup" aria-label="Colour the map by">
+      <button class="mode is-on" data-mode="sector" role="radio" aria-checked="true">Network</button>
+      <button class="mode" data-mode="time" role="radio" aria-checked="false">Journey time</button>
+    </div>
+    <span class="dock-sep" aria-hidden="true"></span>
+    <button id="tableBtn" class="dock-btn">Table</button>
+    <button id="baseBtn" class="dock-btn" aria-pressed="false">Satellite</button>
+  </div>
+  <div id="dockPanel" class="dock-panel" hidden>
+    <label class="fld"><span>Named line</span>
+      <select id="lineSel" aria-label="Filter to one named line"><option value="">All lines</option></select>
+    </label>
+    <div id="legend" class="legend"></div>
+    <p id="prov" class="prov"></p>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------ table modal -- -->
+<div id="tableWrap" class="modal" hidden>
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h2>All stations</h2>
+      <button id="tableClose" class="icon-btn" title="Close">&times;</button>
+    </div>
+    <div class="table-scroll">
+      <table id="stationTable">
+        <thead><tr>
+          <th data-sort="name">Station</th><th data-sort="crs">CRS</th>
+          <th data-sort="sector">Sector</th><th data-sort="term">Terminus</th>
+          <th data-sort="mins" class="num">Time</th><th data-sort="km" class="num">Track km</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="loading" class="loading"><span class="spin"></span><span id="loadMsg">Loading the network…</span></div>
+
+<script src="vendor/leaflet.js"></script>
+<script src="journey.js"></script>
+<script src="track.js"></script>
+<script src="prices.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

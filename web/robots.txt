@@ -1,0 +1,9 @@
+# Tracks is a public map — unlike the rest of the ojrg estate it is meant to be
+# found. Only the generated data directory is held back: several megabytes of
+# binary and JSON that mean nothing without the app, and crawling it just burns
+# transfer.
+User-agent: *
+Allow: /
+Disallow: /data/
+
+Sitemap: https://tracks.ojrg.dev/sitemap.xml

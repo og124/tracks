@@ -1,0 +1,12 @@
+# credentials for the National Rail feed
+.env
+
+# downloaded + generated data (rebuild with `make data`)
+data/raw/
+data/web/
+
+__pycache__/
+*.pyc
+
+# assembled site (make dist) — data/ inside it is a symlink
+dist/

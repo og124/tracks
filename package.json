@@ -1,0 +1,8 @@
+{
+  "name": "tracks",
+  "private": true,
+  "description": "Dev-only: the jsdom used by scripts/test_ui.mjs in CI. Nothing here ships to the site.",
+  "devDependencies": {
+    "jsdom": "30.1.1"
+  }
+}

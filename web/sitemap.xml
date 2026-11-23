@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One URL, deliberately. Tracks is a single page: every station, journey and
+  route is expressed in the query string and rendered client-side, so there is
+  no second document for a crawler to fetch. robots.txt advertises this file,
+  so it has to exist — an advertised sitemap that 404s is worse than none.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://tracks.ojrg.dev/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
