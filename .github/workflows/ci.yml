@@ -8,12 +8,18 @@ on:
 permissions:
   contents: read
 
+# A newer push supersedes a running check.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 # The UI and journey-planner tests (scripts/test_ui.mjs, scripts/test_journey.mjs)
 # need built data — `make data`, ~55 minutes and National Rail credentials for
 # the timetable — so they run locally, not here. These checks need nothing.
 jobs:
   app:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
